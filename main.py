@@ -1,6 +1,6 @@
 import game
+from game import RandomPlayer
 from mcts import MCTS_Player, Uninformative
-from player import RandomPlayer
 from collections import Counter
 
 
@@ -45,17 +45,8 @@ def show_computer_game(players):
 # show_computer_game({'A': RandomPlayer(), 'B': MCTS_Player(Uninformative(), 200)})
 
 
-def match_result(players):
-    state = game.State.INITIAL
-    while state not in game.OUTCOMES:
-        _, player = state
-        action = players[player].choose_action(state)
-        state = game.State.actions(state)[action]
-    return state
-
-
-print(Counter(match_result({'A': MCTS_Player(Uninformative(), 20), 'B': RandomPlayer()}) for i in range(100)))
-print(Counter(match_result({'B': MCTS_Player(Uninformative(), 20), 'A': RandomPlayer()}) for i in range(100)))
+print(Counter(game.match_result({'A': MCTS_Player(Uninformative(), 20), 'B': RandomPlayer()}) for i in range(100)))
+print(Counter(game.match_result({'B': MCTS_Player(Uninformative(), 20), 'A': RandomPlayer()}) for i in range(100)))
 # print(Counter(match_result({'B': MCTS_Player(Uninformative(), 50), 'A': RandomPlayer()}) for i in range(100)))
 # print(Counter(match_result({'B': MCTS_Player(Uninformative(), 200), 'A': RandomPlayer()}) for i in range(100)))
-print(Counter(match_result({'A': MCTS_Player(Uninformative(), 10), 'B': MCTS_Player(Uninformative(), 10)}) for i in range(100)))
+print(Counter(game.match_result({'A': MCTS_Player(Uninformative(), 10), 'B': MCTS_Player(Uninformative(), 10)}) for i in range(100)))

@@ -1,3 +1,6 @@
+import random
+
+
 COLUMNS = 7
 ROWS = 6
 
@@ -46,10 +49,8 @@ class State(object):
         for action in range(COLUMNS):
             board_index = cls._board_index(board, action)
             if board_index is not None:
-                assert board[board_index] == '.'
                 next_board = board[:board_index] + player + board[board_index+1:]
                 maybe_final_score = cls._score_position(next_board, board_index, player)
-                assert maybe_final_score is None or maybe_final_score in OUTCOMES
                 next_state = maybe_final_score or (next_board, other)
                 actions[action] = next_state
         assert len(actions) > 0
@@ -72,3 +73,22 @@ class State(object):
         if '.' not in board:
             return 'TIE'
         return None
+
+
+class Player(object):
+    def choose_action(self, state):
+        raise NotImplementedError()
+
+
+class RandomPlayer(Player):
+    def choose_action(self, state):
+        return random.choice(list(State.actions(state).keys()))
+
+
+def match_result(players):
+    state = State.INITIAL
+    while state not in OUTCOMES:
+        _, player = state
+        action = players[player].choose_action(state)
+        state = State.actions(state)[action]
+    return state

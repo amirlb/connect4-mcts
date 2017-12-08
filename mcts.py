@@ -1,6 +1,5 @@
 import game
 import numpy as np
-import player
 
 
 class Evaluator(object):
@@ -64,8 +63,9 @@ class MovesGraph(object):
 
     def _add_noise(self, node):
         noise = np.random.dirichlet(np.ones(game.COLUMNS) / game.COLUMNS)
+        factor = 1 / sum(noise[action] for action in node.keys())
         for action, edge in node.items():
-            edge.add_noise(self._epsilon, noise[action])
+            edge.add_noise(self._epsilon, noise[action] * factor)
 
     def _expand(self, node):
         edge = self._choose_edge(node)
@@ -90,7 +90,7 @@ class MovesGraph(object):
         return node[action]
 
 
-class MCTS_Player(player.Player):
+class MCTS_Player(game.Player):
     def __init__(self, evaluator, n_playouts):
         self._moves_graph = MovesGraph(evaluator)
         self._n_playouts = n_playouts
