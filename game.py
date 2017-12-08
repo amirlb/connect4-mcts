@@ -1,10 +1,22 @@
 COLUMNS = 7
 ROWS = 6
 
-LINES = [[x*ROWS + (y+i) for i in range(4)] for x in range(COLUMNS) for y in range(ROWS - 3)] + \
-        [[(x+i)*ROWS + y for i in range(4)] for x in range(COLUMNS - 3) for y in range(ROWS)] + \
-        [[(x+i)*ROWS + (y+i) for i in range(4)] for x in range(COLUMNS - 3) for y in range(ROWS - 3)] + \
-        [[(x+i)*ROWS + (y-i) for i in range(4)] for x in range(COLUMNS - 3) for y in range(3, ROWS)]
+LINES = []
+# vertical
+for x in range(COLUMNS):
+    for y in range(ROWS - 3):
+        LINES.append([x*ROWS + (y+i) for i in range(4)])
+# horizontal
+for y in range(ROWS):
+    for x in range(COLUMNS - 3):
+        LINES.append([(x+i)*ROWS + y for i in range(4)])
+# diagonal
+for x in range(COLUMNS - 3):
+    for y in range(ROWS - 3):
+        LINES.append([(x+i)*ROWS + (y+i) for i in range(4)])
+    for y in range(3, ROWS):
+        LINES.append([(x+i)*ROWS + (y-i) for i in range(4)])
+
 LINES_BY_INDEX = {i: [] for i in range(COLUMNS * ROWS)}
 for line in LINES:
     for i in line:
