@@ -59,5 +59,5 @@ mcts_20 = lambda: MCTS_Player(Uninformative(), 20)
 mcts_50 = lambda: MCTS_Player(Uninformative(), 50)
 mcts_100 = lambda: MCTS_Player(Uninformative(), 100)
 ratings = rating.rate_players([RandomPlayer, mcts_0, mcts_10, mcts_20, mcts_50, mcts_100], 10)
-for n_playouts, elo in zip([0, 10, 20, 50], ratings[1:]):
+for n_playouts, elo in zip([0, 10, 20, 50, 100], ratings[1:]):
     print('Rating for {:3d} random playouts: {:4d}'.format(n_playouts, int(elo)))
