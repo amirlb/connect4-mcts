@@ -44,6 +44,9 @@ def show_computer_game(players):
 
 
 # show_computer_game({'A': RandomPlayer(), 'B': MCTS_Player(Uninformative(), 200)})
+# print()
+# show_computer_game({'A': MCTS_Player(Uninformative(), 200), 'B': MCTS_Player(Uninformative(), 200)})
+# print()
 
 
 # print(Counter(game.match_result({'A': MCTS_Player(Uninformative(), 20), 'B': RandomPlayer()}) for i in range(100)))
@@ -53,11 +56,9 @@ def show_computer_game(players):
 # print(Counter(game.match_result({'A': MCTS_Player(Uninformative(), 10), 'B': MCTS_Player(Uninformative(), 10)}) for i in range(100)))
 
 
-mcts_0 = lambda: MCTS_Player(Uninformative(), 0)
-mcts_10 = lambda: MCTS_Player(Uninformative(), 10)
-mcts_20 = lambda: MCTS_Player(Uninformative(), 20)
-mcts_50 = lambda: MCTS_Player(Uninformative(), 50)
-mcts_100 = lambda: MCTS_Player(Uninformative(), 100)
-ratings = rating.rate_players([RandomPlayer, mcts_0, mcts_10, mcts_20, mcts_50, mcts_100], 10)
-for n_playouts, elo in zip([0, 10, 20, 50, 100], ratings[1:]):
+def mcts_factory(n_playouts):
+    return lambda: MCTS_Player(Uninformative(), n_playouts=n_playouts)
+playout_values = [0, 2, 4, 6, 8, 10, 20, 30, 40, 50, 100, 150, 200]
+ratings = rating.rate_players([RandomPlayer] + list(map(mcts_factory, playout_values)), 50)
+for n_playouts, elo in zip(playout_values, ratings[1:]):
     print('Rating for {:3d} random playouts: {:4d}'.format(n_playouts, int(elo)))

@@ -22,8 +22,8 @@ class MovesGraph(object):
             self.prior_prob = prob
             self.n_visits = 0
             self.total_value = 0
-            self.value = 0
-            self.player_value = 0
+            self.value = value
+            self.player_value = self.value * self.value_sign
 
         def add_noise(self, epsilon, noise):
             self.prior_prob = (1 - epsilon) * self.prior_prob + epsilon * noise
@@ -34,7 +34,7 @@ class MovesGraph(object):
             self.value = self.total_value / self.n_visits
             self.player_value = self.value * self.value_sign
 
-    def __init__(self, evaluator, epsilon=0.25, puct_const=0.85):
+    def __init__(self, evaluator, epsilon=0.25, puct_const=2.8):
         self._evaluator = evaluator
         self._cache = {}  # dict from state to node, where node is dict from action to EdgeData
         self._epsilon = epsilon
@@ -91,8 +91,8 @@ class MovesGraph(object):
 
 
 class MCTS_Player(game.Player):
-    def __init__(self, evaluator, n_playouts):
-        self._moves_graph = MovesGraph(evaluator)
+    def __init__(self, evaluator, n_playouts, **kwargs):
+        self._moves_graph = MovesGraph(evaluator, **kwargs)
         self._n_playouts = n_playouts
 
     def choose_action(self, state):
