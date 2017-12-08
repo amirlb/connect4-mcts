@@ -1,12 +1,17 @@
 import game
 import numpy as np
-from collections import namedtuple
+import player
 
 
 class Evaluator(object):
     def evaluate(state):
         "Return probabilities vector and estimated value"
         raise NotImplementedError()
+
+
+class Uninformative(Evaluator):
+    def evaluate(self, state):
+        return np.ones(game.COLUMNS) / game.COLUMNS, 0
 
 
 class MovesGraph(object):
@@ -43,14 +48,11 @@ class MovesGraph(object):
         self._add_noise(node)
         for i in range(n_playouts):
             self._expand(node)
-        # return max(node.keys(),
-        #            key=lambda action: node[action].player_value)
-        best_value = max(edge.n_visits for edge in node.values())
-        best_actions = [action for action, edge in node.items() if edge.n_visits == best_value]
+        most_visits = max(edge.n_visits for edge in node.values())
+        best_actions = [action for action, edge in node.items() if edge.n_visits == most_visits]
         return np.random.choice(best_actions)
 
     def _create_node(self, state):
-        assert state not in self._cache  # TODO: remove this line, unnecessary
         _, player = state
         probs, value = self._evaluator.evaluate(state)
         factor = 1 / sum(probs[action] for action in game.State.actions(state).keys())
@@ -86,3 +88,12 @@ class MovesGraph(object):
         best_actions = [action for action, score in scores.items() if score == best_score]
         action = np.random.choice(best_actions)
         return node[action]
+
+
+class MCTS_Player(player.Player):
+    def __init__(self, evaluator, n_playouts):
+        self._moves_graph = MovesGraph(evaluator)
+        self._n_playouts = n_playouts
+
+    def choose_action(self, state):
+        return self._moves_graph.choose_action(state, self._n_playouts)
