@@ -1,0 +1,37 @@
+import game
+import numpy as np
+from scipy.optimize import minimize
+
+
+def rate_players(players, n_games_per_pair, elo_scale=1/400):
+    win_matrix = np.zeros([len(players), len(players)])
+    for i1, player1 in enumerate(players):
+        for i2, player2 in enumerate(players[:i1]):
+            for j in range(n_games_per_pair):
+                outcome = game.match_result({'A': player1(), 'B': player2()})
+                if outcome == 'WIN_A':
+                    win_matrix[i1, i2] += 1
+                elif outcome == 'WIN_B':
+                    win_matrix[i2, i1] += 1
+                outcome = game.match_result({'A': player2(), 'B': player1()})
+                if outcome == 'WIN_A':
+                    win_matrix[i2, i1] += 1
+                elif outcome == 'WIN_B':
+                    win_matrix[i1, i2] += 1
+    # print(win_matrix)
+    # print(minimize(elo_from_win_matrix,
+    #                x0=np.zeros(len(players) - 1),
+    #                args=(win_matrix, elo_scale)))
+    result = minimize(elo_from_win_matrix,
+                      x0=np.zeros(len(players) - 1),
+                      args=(win_matrix, elo_scale))
+    return [0] + result['x'].tolist()
+
+
+def elo_from_win_matrix(x0, win_matrix, elo_scale):
+    strength = np.concatenate([[0], x0 * elo_scale])
+    win_probs = 1 / (1 + np.exp(-np.subtract.outer(strength, strength)))
+    # if np.random.uniform() < 1/100:
+    #     print(strength)
+    #     print(win_probs)
+    return -np.sum(win_matrix * np.log(win_probs))
