@@ -1,5 +1,29 @@
 import game
 import random
+import mcts
+import numpy as np
+from collections import Counter
+
+
+class Uniform(mcts.Evaluator):
+    def evaluate(self, state):
+        return np.ones(game.COLUMNS) / game.COLUMNS, 0
+
+
+class Player(object):
+    def choose_action(self, state):
+        raise NotImplementedError()
+
+class RandomPlayer(Player):
+    def choose_action(self, state):
+        return random.choice(list(game.State.actions(state).keys()))
+
+class MCTSPlayer(Player):
+    def __init__(self, evaluator, n_playouts):
+        self._moves_graph = mcts.MovesGraph(evaluator)
+        self._n_playouts = n_playouts
+    def choose_action(self, state):
+        return self._moves_graph.choose_action(state, self._n_playouts)
 
 
 def print_board(board):
@@ -17,12 +41,14 @@ def print_trace(trace):
         print()
 
 
-def play_random_game():
+def show_computer_game(players):
     trace = [[] for i in range(game.COLUMNS)]
     state = game.State.INITIAL
     i = 1
     while state not in game.OUTCOMES:
-        action, next_state = random.choice(game.State.actions(state))
+        _, player = state
+        action = players[player].choose_action(state)
+        next_state = game.State.actions(state)[action]
         if next_state in game.OUTCOMES:
             board, player = state
             print_board(board)
@@ -38,13 +64,22 @@ def play_random_game():
     print('Game outcome: ' + state)
 
 
-play_random_game()
+# show_computer_game({'A': RandomPlayer(), 'B': MCTSPlayer(Uniform(), 200)})
 
 
-# for line in game.LINES:
-#     pieces = ['.'] * game.ROWS * game.COLUMNS
-#     for i in line:
-#         pieces[i] = 'X'
-#     print_board(''.join(pieces))
-#     print()
-#     print()
+def match_result(players):
+    state = game.State.INITIAL
+    while state not in game.OUTCOMES:
+        # print(repr(state))
+        _, player = state
+        # print(repr(player))
+        # print()
+        action = players[player].choose_action(state)
+        state = game.State.actions(state)[action]
+    return state
+
+print(Counter(match_result({'A': MCTSPlayer(Uniform(), 20), 'B': RandomPlayer()}) for i in range(100)))
+print(Counter(match_result({'B': MCTSPlayer(Uniform(), 20), 'A': RandomPlayer()}) for i in range(100)))
+print(Counter(match_result({'B': MCTSPlayer(Uniform(), 50), 'A': RandomPlayer()}) for i in range(100)))
+print(Counter(match_result({'B': MCTSPlayer(Uniform(), 200), 'A': RandomPlayer()}) for i in range(100)))
+print(Counter(match_result({'A': MCTSPlayer(Uniform(), 10), 'B': MCTSPlayer(Uniform(), 10)}) for i in range(100)))

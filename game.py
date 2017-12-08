@@ -10,8 +10,14 @@ for line in LINES:
     for i in line:
         LINES_BY_INDEX[i].append(line)
 
-OTHER_PLAYER = {'A': 'B', 'B': 'A'}
-OUTCOMES = {'WIN_A', 'WIN_B', 'TIE'}
+NEXT_PLAYER = {'A': 'B', 'B': 'A'}
+
+# game-theoretic values for player A
+OUTCOMES = {
+    'WIN_A': 1,
+    'WIN_B': -1,
+    'TIE': 0
+}
 
 
 class State(object):
@@ -23,8 +29,8 @@ class State(object):
         if state in cls._actions:
             return cls._actions[state]
         board, player = state
-        other = OTHER_PLAYER[player]
-        actions = []
+        other = NEXT_PLAYER[player]
+        actions = {}
         for action in range(COLUMNS):
             board_index = cls._board_index(board, action)
             if board_index is not None:
@@ -33,7 +39,7 @@ class State(object):
                 maybe_final_score = cls._score_position(next_board, board_index, player)
                 assert maybe_final_score is None or maybe_final_score in OUTCOMES
                 next_state = maybe_final_score or (next_board, other)
-                actions.append((action, next_state))
+                actions[action] = next_state
         assert len(actions) > 0
         cls._actions[state] = actions
         return actions
