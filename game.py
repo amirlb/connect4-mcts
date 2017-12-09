@@ -92,3 +92,18 @@ def match_result(players):
         action = players[player].choose_action(state)
         state = State.actions(state)[action]
     return state
+
+
+def run_match_save_results(players):
+    "returns dictionary from player to list of (state, action, value)"
+    state = State.INITIAL
+    positions = {'A': [], 'B': []}
+    while state not in OUTCOMES:
+        _, player = state
+        action = players[player].choose_action(state)
+        positions[player].append((state, action))
+        state = State.actions(state)[action]
+    value = OUTCOMES[state]
+    return {player: [(state, action, value)
+                     for state, action in positions[player]]
+            for player in ('A', 'B')}
