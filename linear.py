@@ -59,7 +59,7 @@ class LinearEvaluator(mcts.Evaluator):
         print('           WIN   LOSE    TIE    ELO')
         win, lose, tie = 0, 0, 0
         for i in range(50):
-            outcome = game.match_result({'A': mcts.MCTS_Player(self, 30), 'B': mcts.MCTS_Player(mcts.Uninformative(), 30)})
+            outcome = game.match(A=mcts.MCTS_Player(self, 30), B=mcts.MCTS_Player(mcts.Uninformative(), 30)).outcome
             if outcome == 'WIN_A':
                 win += 1
                 total_win += 1
@@ -72,7 +72,7 @@ class LinearEvaluator(mcts.Evaluator):
         print('A=smart  {:5d}  {:5d}  {:5d}'.format(win, lose, tie))
         win, lose, tie = 0, 0, 0
         for i in range(50):
-            outcome = game.match_result({'A': mcts.MCTS_Player(mcts.Uninformative(), 30), 'B': mcts.MCTS_Player(self, 30)})
+            outcome = game.match(A=mcts.MCTS_Player(mcts.Uninformative(), 30), B=mcts.MCTS_Player(self, 30)).outcome
             if outcome == 'WIN_B':
                 win += 1
                 total_win += 1
@@ -98,7 +98,8 @@ for i in range(20):
     print(time.ctime(), '  running 500 self-play games')
     batch = []
     for j in range(500):
-        results = game.run_match_save_results({'A': mcts.MCTS_Player(lin_eval, 30), 'B': mcts.MCTS_Player(lin_eval, 30)})
+        results = game.match(A=mcts.MCTS_Player(lin_eval, 30),
+                             B=mcts.MCTS_Player(lin_eval, 30)).positions_dict()
         for data in results.values():
             batch.extend(data)
     print(time.ctime(), '  gradient descent, 1000 iterations')

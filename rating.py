@@ -8,12 +8,12 @@ def rate_players(players, n_games_per_pair, elo_scale=1/400):
     for i1, player1 in enumerate(players):
         for i2, player2 in enumerate(players[:i1]):
             for j in range(n_games_per_pair):
-                outcome = game.match_result({'A': player1(), 'B': player2()})
+                outcome = game.match(A=player1(), B=player2()).outcome
                 if outcome == 'WIN_A':
                     win_matrix[i1, i2] += 1
                 elif outcome == 'WIN_B':
                     win_matrix[i2, i1] += 1
-                outcome = game.match_result({'A': player2(), 'B': player1()})
+                outcome = game.match(A=player2(), B=player1()).outcome
                 if outcome == 'WIN_A':
                     win_matrix[i2, i1] += 1
                 elif outcome == 'WIN_B':

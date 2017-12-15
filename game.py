@@ -1,4 +1,5 @@
 import random
+from collections import namedtuple
 
 
 COLUMNS = 7
@@ -85,25 +86,61 @@ class RandomPlayer(Player):
         return random.choice(list(State.actions(state).keys()))
 
 
-def match_result(players):
+class GameLog(object):
+    "Lists of all the actions and responses in the game"
+    StateAction = namedtuple('StateAction', ['state', 'action'])
+
+    def __init__(self):
+        self._journal = []
+        self.outcome = None
+
+    def record_move(self, state, action):
+        self._journal.append(self.StateAction(state=state, action=action))
+
+    def record_outcome(self, outcome):
+        self.outcome = outcome
+
+    def print(self):
+        last_board, last_player = self._journal[-1].state
+        last_action = self._journal[-1].action
+        trace = [[] for i in range(COLUMNS)]
+        for i, event in enumerate(self._journal):
+            trace[event.action].append(i)
+        print('{board}\n\n{player} plays {action}\n\n{trace}\n\nGame outcome: {outcome}'.format(
+            board=self._str_board(last_board),
+            player=last_player,
+            action=last_action,
+            trace=self._str_trace(trace),
+            outcome=self.outcome))
+
+    @staticmethod
+    def _str_board(board):
+        return '\n'.join(''.join(' {} '.format(board[x * ROWS + y])
+                                 for x in range(COLUMNS))
+                         for y in reversed(range(ROWS)))
+
+    @staticmethod
+    def _str_trace(trace):
+        return '\n'.join(' '.join('{:2d}'.format(trace[x][y] + 1) if y < len(trace[x]) else ' .'
+                                  for x in range(COLUMNS))
+                         for y in reversed(range(ROWS)))
+
+    def positions_dict(self):
+        value = OUTCOMES[self.outcome]
+        positions = {'A': [], 'B': []}
+        for event in self._journal:
+            _, player = event.state
+            positions[player].append((event.state, event.action, value))
+        return positions
+
+
+def match(**players):
+    log = GameLog()
     state = State.INITIAL
     while state not in OUTCOMES:
         _, player = state
         action = players[player].choose_action(state)
+        log.record_move(state, action)
         state = State.actions(state)[action]
-    return state
-
-
-def run_match_save_results(players):
-    "returns dictionary from player to list of (state, action, value)"
-    state = State.INITIAL
-    positions = {'A': [], 'B': []}
-    while state not in OUTCOMES:
-        _, player = state
-        action = players[player].choose_action(state)
-        positions[player].append((state, action))
-        state = State.actions(state)[action]
-    value = OUTCOMES[state]
-    return {player: [(state, action, value)
-                     for state, action in positions[player]]
-            for player in ('A', 'B')}
+    log.record_outcome(state)
+    return log
