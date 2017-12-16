@@ -3,14 +3,14 @@ import numpy as np
 
 
 class Evaluator(object):
-    def evaluate(state):
+    def evaluate(features):
         "Return probabilities vector and estimated value"
         raise NotImplementedError()
 
 
 class Uninformative(Evaluator):
-    def evaluate(self, state):
-        return np.ones(game.COLUMNS) / game.COLUMNS, 0
+    def evaluate(self, features):
+        return [1 / game.COLUMNS] * game.COLUMNS, 0
 
 
 class MovesGraph(object):
@@ -22,8 +22,8 @@ class MovesGraph(object):
             self.prior_prob = prob
             self.n_visits = 0
             self.total_value = 0
-            self.value = value
-            self.player_value = self.value * self.value_sign
+            self.value = value * self.value_sign
+            self.player_value = self.value
 
         def add_noise(self, epsilon, noise):
             self.prior_prob = (1 - epsilon) * self.prior_prob + epsilon * noise
@@ -40,9 +40,9 @@ class MovesGraph(object):
         self._epsilon = epsilon
         self._puct_const = 0.85
 
-    def choose_action(self, state, n_playouts):
+    def choose_action(self, state, features, n_playouts):
         if state not in self._cache:
-            self._create_node(state)
+            self._create_node(state, features)
         node = self._cache[state]
         self._add_noise(node)
         for i in range(n_playouts):
@@ -51,15 +51,15 @@ class MovesGraph(object):
         best_actions = [action for action, edge in node.items() if edge.n_visits == most_visits]
         probs = np.zeros(game.COLUMNS)
         probs[best_actions] = 1 / len(best_actions)
-        return probs, np.random.choice(best_actions)
+        return probs.tolist(), np.random.choice(best_actions)
 
-    def _create_node(self, state):
+    def _create_node(self, state, features):
         _, player = state
-        probs, value = self._evaluator.evaluate(state)
-        factor = 1 / sum(probs[action] for action in game.State.actions(state).keys())
+        probs, value = self._evaluator.evaluate(features)
+        factor = 1 / sum(probs[action] for action in game.actions(state).keys())
         self._cache[state] = {
             action: self.EdgeData(player, next_state, probs[action] * factor, value)
-            for action, next_state in game.State.actions(state).items()
+            for action, next_state in game.actions(state).items()
         }
         return value
 
@@ -76,7 +76,8 @@ class MovesGraph(object):
         elif edge.next_state in game.OUTCOMES:
             value = game.OUTCOMES[edge.next_state]
         else:
-            value = self._create_node(edge.next_state)
+            features = game.encode_board(edge.next_state)
+            value = self._create_node(edge.next_state, features)
         edge.update(value)
         return value
 
@@ -97,5 +98,7 @@ class MCTS_Player(game.Player):
         self._moves_graph = MovesGraph(evaluator, **kwargs)
         self._n_playouts = n_playouts
 
-    def choose_action(self, state):
-        return self._moves_graph.choose_action(state, self._n_playouts)
+    def choose_action(self, match):
+        state = match.states[-1]
+        features = match.encoded_boards[-1]
+        return self._moves_graph.choose_action(state, features, self._n_playouts)

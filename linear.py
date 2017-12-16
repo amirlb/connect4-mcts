@@ -43,84 +43,119 @@ class LinearEvaluator(mcts.Evaluator):
         self.session = tf.Session()
         self.session.run(tf.global_variables_initializer())
 
-    def evaluate(self, state):
+    @classmethod
+    def initial(cls):
+        return cls()
+
+    def evaluate(self, features):
         if random.random() < 0.5:
-            state = game.State.random_permute(state)
+            features = game.reflect_columns(features)
         action_probs = self.session.run(self.action_probs, feed_dict={
-            self.features: [game.GameLog._encode(state)]
+            self.features: [features]
         })[0]
         return action_probs, 0
 
-    def train(self, batch_states, batch_probs, n_steps):
-        logging.info('Gradient descent, 1000 iterations')
-        feed_dict = {
-            self.features: batch_states,
-            self.chosen_action: batch_probs
-        }
-        loss = []
-        for i in Progress(range(n_steps)):
-            if i % 100 == 0:
-                loss.append(self.session.run(self.cross_entropy, feed_dict=feed_dict))
-            self.session.run(self.train_op, feed_dict=feed_dict)
-        loss.append(self.session.run(self.cross_entropy, feed_dict=feed_dict))
-        logging.info('Training losses: {}'.format(', '.join('{:.3f}'.format(x) for x in loss)))
+    @classmethod
+    def train(cls, batch_states, batch_probs, mini_batch_size, n_steps):
+        obj = cls()
+        obj._train(batch_states, batch_probs, mini_batch_size, n_steps)
+        return obj
 
-    def compare_with_naive(self):
-        total_win, total_lose, total_tie = 0, 0, 0
-        print('           WIN   LOSE    TIE    ELO')
-        win, lose, tie = 0, 0, 0
-        print('A=smart  {:5d}  {:5d}  {:5d}'.format(win, lose, tie), end='', flush=True)
-        for i in range(50):
-            outcome = game.match(A=mcts.MCTS_Player(self, 30), B=mcts.MCTS_Player(mcts.Uninformative(), 30)).outcome
-            if outcome == 'WIN_A':
-                win += 1
-                total_win += 1
-            elif outcome == 'WIN_B':
-                lose += 1
-                total_lose += 1
-            else:
-                tie += 1
-                total_tie += 1
-            print('\rA=smart  {:5d}  {:5d}  {:5d}'.format(win, lose, tie), end='', flush=True)
-        print()
-        win, lose, tie = 0, 0, 0
-        print('A=naive  {:5d}  {:5d}  {:5d}'.format(win, lose, tie), end='', flush=True)
-        for i in range(50):
-            outcome = game.match(A=mcts.MCTS_Player(mcts.Uninformative(), 30), B=mcts.MCTS_Player(self, 30)).outcome
-            if outcome == 'WIN_B':
-                win += 1
-                total_win += 1
-            elif outcome == 'WIN_A':
-                lose += 1
-                total_lose += 1
-            else:
-                tie += 1
-                total_tie += 1
-            print('\rA=naive  {:5d}  {:5d}  {:5d}'.format(win, lose, tie), end='', flush=True)
-        print()
-        approx_elo = int(400 * math.log(total_win / total_lose))
-        print('total    {:5d}  {:5d}  {:5d}  {:5d}'.format(total_win, total_lose, total_tie, approx_elo))
-        print()
+    def _train(self, batch_states, batch_probs, mini_batch_size, n_steps):
+        batch_size = len(batch_states)
+        logging.info('Gradient descent with batch size {}'.format(batch_size))
+        dataset = tf.data.Dataset.zip((
+            tf.data.Dataset.from_tensor_slices(batch_states),
+            tf.data.Dataset.from_tensor_slices(batch_probs)))
+        dataset = dataset.shuffle(2**16).repeat().batch(mini_batch_size)
+        iterator = dataset.make_one_shot_iterator()
+        next_batch = iterator.get_next()
+        validation_inds = random.sample(range(batch_size), min(batch_size, 100))
+        validation_feed_dict = {
+            self.features: [batch_states[i] for i in validation_inds],
+            self.chosen_action: [batch_probs[i] for i in validation_inds]}
+        logging.info('Performing {} iterations with mini-batch size {}'.format(n_steps, mini_batch_size))
+        loss = []
+        for i in range(n_steps):
+            next_states, next_probs = self.session.run(next_batch)
+            feed_dict = {
+                self.features: next_states,
+                self.chosen_action: next_probs
+            }
+            if i % 100 == 0:
+                loss.append(self.session.run(self.cross_entropy, feed_dict=validation_feed_dict))
+            self.session.run(self.train_op, feed_dict=feed_dict)
+        loss.append(self.session.run(self.cross_entropy, feed_dict=validation_feed_dict))
+        logging.info('Training losses: {}'.format(', '.join('{:.3f}'.format(x) for x in loss)))
 
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s]  %(message)s')
 
 
-lin_eval = LinearEvaluator()
+def compare_evaluators(evaluators, n_games, n_playouts, verbose):
+    "Evaluators is list of (name, evaluator)"
+    combined_results = [0, 0, 0]  # win, lose, tie
+    if verbose:
+        print('            WIN   LOSE    TIE    ELO')
+    for order in range(2):
+        results = [0, 0, 0]  # win, lost, tie
+        for i in range(n_games):
+            [(name, eval_A), (_, eval_B)] = evaluators[order], evaluators[1 - order]
+            if verbose:
+                print('\rA={:6s}  {:5d}  {:5d}  {:5d}'.format(name, *results), end='', flush=True)
+            outcome = game.match(A=mcts.MCTS_Player(eval_A, n_playouts), B=mcts.MCTS_Player(eval_B, n_playouts))
+            if outcome == 'WIN_A':
+                results[order] += 1
+                combined_results[order] += 1
+            elif outcome == 'WIN_B':
+                results[1 - order] += 1
+                combined_results[1 - order] += 1
+            else:
+                results[2] += 1
+                combined_results[2] += 1
+        if verbose:
+            print('\rA={:6s}  {:5d}  {:5d}  {:5d}'.format(name, *results))
+    approx_elo = int(400 * math.log(combined_results[0] / combined_results[1], 10))
+    if verbose:
+        print('total     {:5d}  {:5d}  {:5d}  {:5d}'.format(*(combined_results + [approx_elo])))
+    return approx_elo
 
-logging.info('Initial performance:')
-lin_eval.compare_with_naive()
 
-for i in range(20):
-    logging.info('Running 500 self-play games')
-    batch_states = []
-    batch_probs = []
-    for j in Progress(range(500)):
-        results = game.match(A=mcts.MCTS_Player(lin_eval, 30),
-                             B=mcts.MCTS_Player(lin_eval, 30))
-        states, probs, _ = results.training_vectors()
-        batch_states.extend(states)
-        batch_probs.extend(probs)
-    lin_eval.train(batch_states, batch_probs, 1000)
-    logging.info('Performance:')
-    lin_eval.compare_with_naive()
+linear_evaluators = [LinearEvaluator.initial()]
+current_best = 0
+
+named_naive = ('naive', mcts.Uninformative())
+named_linear = lambda i: ('lin_{}'.format(i), linear_evaluators[i])
+
+try:
+    all_states = []
+    all_probs = []
+    for i in range(20):
+        logging.info('Running 500 self-play games')
+        for j in Progress(range(500)):
+            manager = game.GameManager({
+                'A': mcts.MCTS_Player(linear_evaluators[current_best], 30),
+                'B': mcts.MCTS_Player(linear_evaluators[current_best], 30)
+            })
+            manager.run()
+            all_states.extend(manager.encoded_boards)
+            all_probs.extend(manager.prob_vecs)
+        linear_evaluators.append(LinearEvaluator.train(all_states, all_probs, 2048, 1000))
+        logging.info('Performance against previous:')
+        score = compare_evaluators(
+            [named_linear(len(linear_evaluators) - 1), named_linear(current_best)],
+            n_games=50, n_playouts=30, verbose=True)
+        if score > 34.8:
+            logging.info('Replacing best evaluator')
+            linear_evaluators[current_best] = None
+            current_best = len(linear_evaluators) - 1
+            logging.info('Performance against naive:')
+            score = compare_evaluators(
+                [named_linear(current_best), named_naive],
+                n_games=50, n_playouts=30, verbose=True)
+        else:
+            linear_evaluators[-1] = None
+        print()
+except KeyboardInterrupt:
+    print()
+    logging.info('Interrupted, leaving')
