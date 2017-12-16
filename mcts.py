@@ -49,7 +49,9 @@ class MovesGraph(object):
             self._expand(node)
         most_visits = max(edge.n_visits for edge in node.values())
         best_actions = [action for action, edge in node.items() if edge.n_visits == most_visits]
-        return np.random.choice(best_actions)
+        probs = np.zeros(game.COLUMNS)
+        probs[best_actions] = 1 / len(best_actions)
+        return probs, np.random.choice(best_actions)
 
     def _create_node(self, state):
         _, player = state

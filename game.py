@@ -75,30 +75,36 @@ class State(object):
             return 'TIE'
         return None
 
+    @staticmethod
+    def random_permute(state):
+        if random.random() < 0.5:
+            return state
+        board, player = state
+        board = ''.join(board[i:i + ROWS] for i in reversed(range(0, ROWS * COLUMNS, ROWS)))
+        return (board, player)
+
 
 class Player(object):
     def choose_action(self, state):
+        "Returns a tuple of (policy probabilities, action)"
         raise NotImplementedError()
 
 
 class RandomPlayer(Player):
     def choose_action(self, state):
-        return random.choice(list(State.actions(state).keys()))
+        return None, random.choice(list(State.actions(state).keys()))
 
 
 class GameLog(object):
     "Lists of all the actions and responses in the game"
-    StateAction = namedtuple('StateAction', ['state', 'action'])
+    StateAction = namedtuple('StateAction', ['state', 'probs', 'action'])
 
     def __init__(self):
         self._journal = []
         self.outcome = None
 
-    def record_move(self, state, action):
-        self._journal.append(self.StateAction(state=state, action=action))
-
-    def record_outcome(self, outcome):
-        self.outcome = outcome
+    def record_move(self, state, probs, action):
+        self._journal.append(self.StateAction(state, probs, action))
 
     def print(self):
         last_board, last_player = self._journal[-1].state
@@ -133,14 +139,32 @@ class GameLog(object):
             positions[player].append((event.state, event.action, value))
         return positions
 
+    def training_vectors(self):
+        """
+        Returns 3 values:
+          - Array of shape [N, 2, ROWS * COLUMNS], indicating game states
+          - Array of shape [N, COLUMNS], indicating policy probabilities
+          - Array of shape [N], indicating game value (all entries are the same)
+        (N is the number of moves in the game)
+        """
+        states = [self._encode(event.state) for event in self._journal]
+        probs = [event.probs for event in self._journal]
+        value = [OUTCOMES[self.outcome]] * len(self._journal)
+        return states, probs, value
+
+    @staticmethod
+    def _encode(state):
+        board, _ = state
+        return [[int(c == 'A') for c in board], [int(c == 'B') for c in board]]
+
 
 def match(**players):
     log = GameLog()
     state = State.INITIAL
     while state not in OUTCOMES:
         _, player = state
-        action = players[player].choose_action(state)
-        log.record_move(state, action)
+        probs, action = players[player].choose_action(state)
+        log.record_move(state, probs, action)
         state = State.actions(state)[action]
-    log.record_outcome(state)
+    log.outcome = state
     return log
