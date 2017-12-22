@@ -40,12 +40,15 @@ def train_best(learning_evaluator, n_epochs, n_train_games, n_train_playouts, n_
             if score > 34.8:
                 # 55% win rate
                 logging.info('Replacing best evaluator')
+                del learning_evaluator
                 learning_evaluator = next_gen
                 logging.info('Performance against naive:')
                 rating.rate_verbose(
                     mcts.MCTS_Player(learning_evaluator, n_compare_playouts),
                     mcts.MCTS_Player(mcts.Uninformative(), n_compare_playouts),
                     n_games=n_compare_games)
+            else:
+                del next_gen
             print()
     except KeyboardInterrupt:
         print()
