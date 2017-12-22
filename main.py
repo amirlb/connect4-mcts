@@ -3,6 +3,12 @@ from game import RandomPlayer
 from mcts import MCTS_Player, Uninformative
 from collections import Counter
 import rating
+import learning
+import linear
+import logging
+
+
+logging.basicConfig(level=logging.INFO, format='[%(asctime)s]  %(message)s')
 
 
 # print(game.GameManager({'A': RandomPlayer(), 'B': MCTS_Player(Uninformative(), 200)}).run())
@@ -18,9 +24,15 @@ import rating
 # print(Counter(game.match(A=MCTS_Player(Uninformative(), 10), B=MCTS_Player(Uninformative(), 10)) for i in range(100)))
 
 
-def mcts_factory(n_playouts):
-    return lambda: MCTS_Player(Uninformative(), n_playouts=n_playouts)
-playout_values = [0, 2, 4, 6, 8, 10, 20, 30, 40, 50, 100, 150, 200]
-ratings = rating.rate_players([RandomPlayer] + list(map(mcts_factory, playout_values)), 10)
-for n_playouts, elo in zip(playout_values, ratings[1:]):
-    print('Rating for {:3d} random playouts: {:4d}'.format(n_playouts, int(elo)))
+# playout_values = [0, 2, 4, 6, 8, 10, 20, 30, 40, 50, 100, 150, 200]
+# ratings = rating.rate_players(
+#     [RandomPlayer()] + [MCTS_Player(Uninformative(), n_playouts=n) for n in playout_values],
+#     10)
+# for n_playouts, elo in zip(playout_values, ratings[1:]):
+#     print('Rating for {:3d} random playouts: {:4d}'.format(n_playouts, int(elo)))
+
+
+learning.train_best(
+    linear.LinearEvaluator(),
+    20, 500, 30, 50, 30
+)

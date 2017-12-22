@@ -77,6 +77,10 @@ def reflect_columns(features):
 
 
 class Player(object):
+    def reset(self):
+        "Clear any in-game state. Called at the start of matches"
+        pass
+
     def choose_action(self, match):
         "Returns a tuple of (policy probabilities, action)"
         raise NotImplementedError()
@@ -101,6 +105,8 @@ class GameManager(object):
         self.actions = []
 
     def run(self):
+        for player in self.players.values():
+            player.reset()
         while self.current_state not in OUTCOMES:
             self.states.append(self.current_state)
             self.encoded_boards.append(encode_board(self.current_state))

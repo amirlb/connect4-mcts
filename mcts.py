@@ -3,12 +3,18 @@ import numpy as np
 
 
 class Evaluator(object):
-    def evaluate(features):
+    def get_name(self):
+        "Return name of the object"
+
+    def evaluate(self, features):
         "Return probabilities vector and estimated value"
         raise NotImplementedError()
 
 
 class Uninformative(Evaluator):
+    def get_name(self):
+        return "naive"
+
     def evaluate(self, features):
         return [1 / game.COLUMNS] * game.COLUMNS, 0
 
@@ -39,6 +45,9 @@ class MovesGraph(object):
         self._cache = {}  # dict from state to node, where node is dict from action to EdgeData
         self._epsilon = epsilon
         self._puct_const = 0.85
+
+    def reset(self):
+        self._cache = {}
 
     def choose_action(self, state, features, n_playouts):
         if state not in self._cache:
@@ -95,8 +104,12 @@ class MovesGraph(object):
 
 class MCTS_Player(game.Player):
     def __init__(self, evaluator, n_playouts, **kwargs):
+        self.evaluator_name = evaluator.get_name()
         self._moves_graph = MovesGraph(evaluator, **kwargs)
         self._n_playouts = n_playouts
+
+    def reset(self):
+        self._moves_graph.reset()
 
     def choose_action(self, match):
         state = match.states[-1]
