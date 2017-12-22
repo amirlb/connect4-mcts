@@ -6,6 +6,7 @@ import rating
 import learning
 import linear
 import logging
+import all_to_all_nn
 
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s]  %(message)s')
@@ -33,6 +34,7 @@ logging.basicConfig(level=logging.INFO, format='[%(asctime)s]  %(message)s')
 
 
 learning.train_best(
-    linear.LinearEvaluator(),
+    # linear.LinearEvaluator(),
+    all_to_all_nn.FullyConnectedEvaluator(n_layers=5, n_layer_neurons=128, regularization=1e-2),
     20, 500, 30, 50, 30
 )
