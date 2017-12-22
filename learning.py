@@ -6,8 +6,8 @@ import rating
 
 
 class LearningEvaluator(mcts.Evaluator):
-    def train(self, states, probs):
-        "Create a new copy of self and train its parameters using the given states and action probs"
+    def train(self, states, probs, values):
+        "Create a new copy of self and train its parameters using the given states, action probs, and outcomes"
         raise NotImplementedError
 
 
@@ -21,17 +21,22 @@ def train_best(learning_evaluator, n_epochs, n_train_games, n_train_playouts, n_
         print()
         all_states = []
         all_probs = []
+        all_values = []
         for i in range(n_epochs):
             logging.info('Running {} self-play games'.format(n_train_games))
             for j in Progress(range(n_train_games)):
                 manager = game.GameManager({
-                    'A': mcts.MCTS_Player(learning_evaluator, n_train_playouts),
-                    'B': mcts.MCTS_Player(learning_evaluator, n_train_playouts)
+                    'A': mcts.MCTS_Player(learning_evaluator, n_train_playouts, temp_cliff=6, epsilon=0.25),
+                    'B': mcts.MCTS_Player(learning_evaluator, n_train_playouts, temp_cliff=6, epsilon=0.25)
                 })
                 manager.run()
                 all_states.extend(manager.encoded_boards)
                 all_probs.extend(manager.prob_vecs)
-            next_gen = learning_evaluator.train(all_states, all_probs)
+                all_values.extend([
+                    [game.OUTCOMES[manager.outcome] * (1 if player == 'A' else -1)]
+                    for _, player in manager.states
+                ])
+            next_gen = learning_evaluator.train(all_states, all_probs, all_values)
             logging.info('Performance against previous:')
             score = rating.rate_verbose(
                 mcts.MCTS_Player(next_gen, n_compare_playouts),

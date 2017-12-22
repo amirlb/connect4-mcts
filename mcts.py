@@ -40,27 +40,39 @@ class MovesGraph(object):
             self.value = self.total_value / self.n_visits
             self.player_value = self.value * self.value_sign
 
-    def __init__(self, evaluator, epsilon=0.25, puct_const=2.8):
+    def __init__(self, evaluator, temp_cliff=0, epsilon=0, dirichlet_alpha=1 / game.COLUMNS, puct_const=5.0):
         self._evaluator = evaluator
         self._cache = {}  # dict from state to node, where node is dict from action to EdgeData
+        self._temp_cliff = temp_cliff
         self._epsilon = epsilon
-        self._puct_const = 0.85
+        self._dirichlet_alpha = dirichlet_alpha
+        self._puct_const = puct_const
 
     def reset(self):
         self._cache = {}
 
-    def choose_action(self, state, features, n_playouts):
+    def choose_action(self, state, features, move_number, n_playouts):
         if state not in self._cache:
             self._create_node(state, features)
         node = self._cache[state]
         self._add_noise(node)
         for i in range(n_playouts):
             self._expand(node)
-        most_visits = max(edge.n_visits for edge in node.values())
-        best_actions = [action for action, edge in node.items() if edge.n_visits == most_visits]
-        probs = np.zeros(game.COLUMNS)
-        probs[best_actions] = 1 / len(best_actions)
-        return probs.tolist(), np.random.choice(best_actions)
+        if move_number < self._temp_cliff:
+            possible_actions = list(node.keys())
+            probs = np.array([node[action].n_visits if action in node else 0
+                              for action in range(game.COLUMNS)],
+                             dtype=np.float)
+        else:
+            most_visits = max(edge.n_visits for edge in node.values())
+            best_actions = [action for action, edge in node.items()
+                            if edge.n_visits == most_visits]
+            probs = np.zeros(game.COLUMNS, dtype=np.float)
+            probs[best_actions] = 1
+        probs /= np.sum(probs)
+        possible_actions = np.nonzero(probs)[0]
+        restricted_probs = np.take(probs, possible_actions)
+        return probs.tolist(), np.random.choice(possible_actions, p=restricted_probs)
 
     def _create_node(self, state, features):
         _, player = state
@@ -73,10 +85,11 @@ class MovesGraph(object):
         return value
 
     def _add_noise(self, node):
-        noise = np.random.dirichlet(np.ones(game.COLUMNS) / game.COLUMNS)
-        factor = 1 / sum(noise[action] for action in node.keys())
-        for action, edge in node.items():
-            edge.add_noise(self._epsilon, noise[action] * factor)
+        if self._epsilon > 0:
+            noise = np.random.dirichlet(np.ones(game.COLUMNS) * self._dirichlet_alpha)
+            factor = 1 / sum(noise[action] for action in node.keys())
+            for action, edge in node.items():
+                edge.add_noise(self._epsilon, noise[action] * factor)
 
     def _expand(self, node):
         edge = self._choose_edge(node)
@@ -114,4 +127,4 @@ class MCTS_Player(game.Player):
     def choose_action(self, match):
         state = match.states[-1]
         features = match.encoded_boards[-1]
-        return self._moves_graph.choose_action(state, features, self._n_playouts)
+        return self._moves_graph.choose_action(state, features, match.move_number, self._n_playouts)

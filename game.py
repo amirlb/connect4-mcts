@@ -64,10 +64,12 @@ def actions(state):
 
 
 def encode_board(state):
-    "Return features, shape [2, ROWS * COLUMNS]"
+    "Return features, shape [4, ROWS * COLUMNS]"
     board, player = state
     other = NEXT_PLAYER[player]
-    return [[int(x == player) for x in board],
+    return [[int(player == 'A')] * (ROWS * COLUMNS),
+            [int(player == 'B')] * (ROWS * COLUMNS),
+            [int(x == player) for x in board],
             [int(x == other) for x in board]]
 
 
@@ -97,6 +99,7 @@ class GameManager(object):
     def __init__(self, players):
         self.players = players
         self.current_state = INITIAL_STATE
+        self.move_number = 0
         self.outcome = None
         # journal
         self.states = []
@@ -115,6 +118,7 @@ class GameManager(object):
             self.prob_vecs.append(probs)
             self.actions.append(action)
             self.current_state = actions(self.current_state)[action]
+            self.move_number += 1
         self.outcome = self.current_state
         self.current_state = None
         return self

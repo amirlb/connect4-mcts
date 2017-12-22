@@ -6,7 +6,7 @@ import logging
 
 
 class LinearEvaluator(learning.LearningEvaluator):
-    N_FEATURES = 2
+    N_FEATURES = 4
     INPUT_SIZE = game.ROWS * game.COLUMNS * N_FEATURES
     MINI_BATCH_SIZE = 2048
     N_TRAIN_STEPS = 1000
@@ -42,7 +42,7 @@ class LinearEvaluator(learning.LearningEvaluator):
             })[0]
             return action_probs, 0
 
-    def train(self, batch_states, batch_probs):
+    def train(self, batch_states, batch_probs, batch_values):
         with self.graph.as_default():
             matrix_value, affine_value = self.session.run([self.matrix, self.affine])
         obj = self.__class__(matrix_value, affine_value)
